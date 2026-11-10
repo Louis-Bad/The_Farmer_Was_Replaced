@@ -1,14 +1,8 @@
 import functions
+clear()
 
 while True:
-    for i in range(get_world_size()):
-        functions.pumpkin_patch()
-        harvest()
-        move(North)
-    move(East)
-
-
-
+    functions.farm_field(0, 0, 5, 3, 0)
 
 
 
