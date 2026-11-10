@@ -50,24 +50,9 @@ def get_tile(direction):
 
 
 
-# ----- UNDER CONSTRUCTION -----
-# Function will take in a start coordinate and a size then return a dictionary 
-# with 'x' and 'y' as the keys and the values being a list of values.
-# This list of values will represent a nxn section of the farm
-def get_coords(start=[0,0], size=get_world_size()):
-    x_coords = [start[0]] 
-    y_coords = [start[1]]
-
-    for i in range(size):
-        x_coords.append()
-        y_coords.append()
-
-    return x_coords, y_coords
-
-
 
 def farm_hay_col():
-    # Function will farm hay across a column.
+    # Function will farm hay along a column.
     for i in range(get_world_size()):
         harvest()
         move(North)
@@ -78,7 +63,7 @@ def farm_hay_col():
 
 
 def farm_bush_col():
-    # Function will farm bushes across a column.
+    # Function will farm bushes along a column.
     for i in range(get_world_size()):
         harvest()
         plant(Entities.Bush)
@@ -90,7 +75,7 @@ def farm_bush_col():
 
 
 def farm_tree_col():
-    # Function will plant trees across a column ensuring that no trees are
+    # Function will plant trees along a column ensuring that no trees are
     # planted adjacent to one another (diagonal is fine).
     tree_left = get_tile(West)["plant"] == Entities.Tree
     tree_right = get_tile(East)["plant"] == Entities.Tree
@@ -121,7 +106,7 @@ def farm_tree_col():
 
 
 def farm_carrot_col():
-    # Function will farm carrots across a column. Ensuring to till the land only
+    # Function will farm carrots along a column. Ensuring to till the land only
     # when needed.
     for i in range(get_world_size()):
         if get_ground_type() == Grounds.Soil:
@@ -139,12 +124,77 @@ def farm_carrot_col():
 
 
 
-# ----- UNDER CONSTRUCTION -----
-def farm_pumpkin_patch():
-    # Function will create an nxn patch and farm pumpkins within the patch.
-    # Pumpkins will not be harvested until the patch is filled with a giant
+def farm_pumpkin_col(size=0):
+    # Function will farm pumpkins along a column such that a square patch of 
+    # pumpkins will be created, spanning the length of the columns assigned to 
+    # farming pumpkins.
+    # The rest of each column will be left as hay for now.
+    # Pumpkins will not be harvested until the NxN patch is filled with a giant
     # pumpkin.
-    pass
+
+
+    for i in range(get_world_size()):
+        # Pumpkins along column
+        if get_pos_y() in list(range(size)):
+
+            # Till if needed first
+            if get_ground_type() == Grounds.Grassland:
+                if get_pos_y() == 0:
+                    harvest()
+                    till()
+                    plant(Entities.Pumpkin)
+                    first_measure = measure()
+                    move(North)
+                else:
+                    harvest()
+                    till()
+                    plant(Entities.Pumpkin)
+                    move(North)
+
+            # Plant pumpkin if tilled but currently no pumpkin there
+            elif get_ground_type() == Grounds.Soil and not get_entity_type():
+                if get_pos_y() == 0:
+                    plant(Entities.Pumpkin)
+                    first_measure = measure()
+                    move(North)
+                else:
+                    plant(Entities.Pumpkin)
+                    move(North)
+
+            # Replace if there is a dead pumpkin
+            elif get_entity_type() == Entities.Dead_Pumpkin:
+                if get_pos_y() == 0:
+                    harvest()
+                    plant(Entities.Pumpkin)
+                    first_measure = measure()
+                    move(North)
+                else:
+                    harvest()
+                    plant(Entities.Pumpkin)
+                    move(North)
+
+            # If there is a fully grown pumpkin, ignore unless mega pumpkin
+            elif get_entity_type() == Entities.Pumpkin:
+                if get_pos_y() == 0:
+                    first_measure = measure()
+                    move(North)
+                elif get_pos_y() == (size-1):
+                    if measure() == first_measure:
+                        harvest()
+                        move(North)
+                    else:
+                        move(North)
+                else:
+                    move(North)
+
+        # Hay along the rest of the column
+        else:
+            harvest()
+            move(North)
+
+
+    move(East)
+
 
 
 
@@ -179,7 +229,7 @@ def assign_cols(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
 
 
 def farm_field(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
-    # Farm specific items across specified columns and patches.
+    # Farm specific items along specified columns and patches.
     # Function takes integers for each arguement, representing the number of
     # columns that should be assigned to that plant. 
     # Will be expanded to also allow for the assignment of square areas.
@@ -187,7 +237,7 @@ def farm_field(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
     # Dict of plants and columns they will be farmed on
     col_allocation = assign_cols(hay, bush, tree, carrot, pumpkin)
 
-    # For loop will farm each plant across the assigned columns
+    # For loop will farm each plant along the assigned columns
     for col in range(get_world_size()):
 
         # Farm hay
@@ -206,37 +256,10 @@ def farm_field(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
         elif get_pos_x() in col_allocation["carrot_cols"]:
             farm_carrot_col()
     
+        # Farm pumpkins        
+        elif get_pos_x() in col_allocation["pumpkin_cols"]:
+            pumpkin_size = len(col_allocation["pumpkin_cols"])
+            farm_pumpkin_col(pumpkin_size)
     
-    # ----- UNDER CONSTRUCTION -----
-    # Farm mega pumpkin    
-    num_passes = 0
-    for epoch in range(num_passes): 
-        for col in range(get_world_size()):
-            for row in range(get_world_size()):
-            
-                if get_ground_type() == Grounds.Grassland:
-                    harvest()
-                    till()
-                    plant(Entities.Pumpkin)
-                    move(North)
-                elif get_ground_type() == Grounds.Soil and get_entity_type() != Entities.Pumpkin:
-                    harvest()
-                    plant(Entities.Pumpkin)
-                    move(North)
-                elif get_ground_type() == Grounds.Soil and get_entity_type() == Entities.Pumpkin:
-                    move(North)
-
-            move(East)
-    harvest()
-
-
-
-
-
-
-
-
-
-
 
 
