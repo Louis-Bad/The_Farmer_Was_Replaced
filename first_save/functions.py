@@ -14,13 +14,14 @@ def tile_info():
     coords = (get_pos_x(), get_pos_y()) 
     ground = get_ground_type()
     plant = get_entity_type()
+    measurement = measure()
     
-    return {"coords":coords, "ground":ground, "plant":plant} 
+    return {"coords":coords, "ground":ground, "plant":plant,
+            "measure":measurement} 
 
 
 
-
-def get_tile(direction):
+def get_tile(direction=None):
     # Function will move to an adjacent tile, read that tiles info and move back.
     if direction == North:
         move(North)
@@ -46,6 +47,52 @@ def get_tile(direction):
         info = tile_info()
 
     return info
+
+
+
+
+
+def move_to(target):
+    # Function will take a tuple of co-ordinates and then move the drone to that tile.
+
+    # Read the current tile and compute the maximum co-ordinate values
+    target = list(target)
+    max_coord = get_world_size() - 1
+    current_location = (get_pos_x(), get_pos_y())
+
+    # To stop the drone from moving beyond the fields edges, if the given
+    # co-ords lie beyond the field's boundaries then set the co-ords to the
+    # min/max value.
+    if target[0] > max_coord:
+        target[0] = max_coord
+    elif target[0] < 0:
+        target[0] = 0
+
+    if target[1] > max_coord:
+        target[1] = max_coord
+    elif target[1] < 0:
+        target[1] = 0
+
+    # Compute the difference between the current tile's x and y co-ords and the target's.
+    x_diff = target[0] - current_location[0]
+    y_diff = target[1] - current_location[1]
+
+    # Move across the x-axis and then the y-axis according to the difference
+    # between locations. Positive values will move north and east,
+    # negative south and west. 
+    if x_diff >= 0:
+        for _ in range(abs(x_diff)):
+            move(East)
+    else:
+        for _ in range(abs(x_diff)):
+            move(West)
+
+    if y_diff >= 0:
+        for _ in range(abs(y_diff)):
+            move(North)
+    else:
+        for _ in range(abs(y_diff)):
+            move(South)
 
 
 
@@ -198,7 +245,62 @@ def farm_pumpkin_col(size=0):
 
 
 
-def assign_cols(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
+# --------------------
+# UNDER CONSTRUCTION
+# Currently, the largest sunflower isn't always farmed first for some reason
+# --------------------
+
+def farm_sunflower_col():
+    # Function will farm sunflowers along a column. The sunflower with the most
+    # petals will be farmed first. Also ensuring to till the land only when needed. 
+    # After each sunflower is planted the location and size will be recorded, 
+    # allowing for the largest to be located once the whole column has been planted.
+    tracking_dict = {}
+
+    while num_items(Items.Power) < 30:
+        # Plant sunflowers along the column
+        for i in range(get_world_size()):
+            if get_ground_type() == Grounds.Soil and get_entity_type() != Entities.Sunflower:
+                plant(Entities.Sunflower)
+                tracking_dict[(get_pos_x(), get_pos_y())] = measure()
+                move(North)
+
+            elif get_ground_type() == Grounds.Soil and get_entity_type() == Entities.Sunflower:
+                tracking_dict[(get_pos_x(), get_pos_y())] = measure()
+                move(North)
+
+            else:
+                harvest()
+                till()
+                plant(Entities.Sunflower)
+                tracking_dict[(get_pos_x(), get_pos_y())] = measure()
+                move(North)
+
+
+        # Search through the tracking dictionary and locate the largest sunflower
+        largest = (None, 0)
+        for val in tracking_dict:
+            if tracking_dict[val] > largest[1]:
+                largest = (val, tracking_dict[val])
+            else:
+                pass
+
+        # Move to the largest sunflower's co-ordinate then harvest
+        move_to(largest[0])
+        while not can_harvest():
+            while get_water() < 0.75:
+                use_item(Items.Water)
+            do_a_flip()
+        harvest()
+
+    # Move to the start of the next column
+    move_to((get_pos_x(), 0))
+    move(East)
+
+
+
+
+def assign_cols(hay=0, bush=0, tree=0, carrot=0, pumpkin=0, sunflower=0):
     # Function will take in a number for each plant and then return a dict 
     # where each key-val pair will state the plant and the list of columns that
     # the plant will be farmed on.
@@ -210,7 +312,8 @@ def assign_cols(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
                       "bush_cols":bush,
                       "tree_cols":tree, 
                       "carrot_cols":carrot,
-                      "pumpkin_cols":pumpkin}
+                      "pumpkin_cols":pumpkin,
+                      "sunflower_cols":sunflower}
 
     
     # The for loop will take the col_allocation dict above and convert the 
@@ -228,14 +331,14 @@ def assign_cols(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
     return col_allocation
 
 
-def farm_field(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
+def farm_field(hay=0, bush=0, tree=0, carrot=0, pumpkin=0, sunflower=0):
     # Farm specific items along specified columns and patches.
     # Function takes integers for each arguement, representing the number of
     # columns that should be assigned to that plant. 
     # Will be expanded to also allow for the assignment of square areas.
 
-    # Dict of plants and columns they will be farmed on
-    col_allocation = assign_cols(hay, bush, tree, carrot, pumpkin)
+    # Dictionary of plants and the columns they will be farmed on
+    col_allocation = assign_cols(hay, bush, tree, carrot, pumpkin, sunflower)
 
     # For loop will farm each plant along the assigned columns
     for col in range(get_world_size()):
@@ -261,5 +364,12 @@ def farm_field(hay=0, bush=0, tree=0, carrot=0, pumpkin=0):
             pumpkin_size = len(col_allocation["pumpkin_cols"])
             farm_pumpkin_col(pumpkin_size)
     
+        # Farm sunflowers
+        elif get_pos_x() in col_allocation["sunflower_cols"]:
+            farm_sunflower_col()
+    
+        # Otherwise just farm hay or whatever I specify below
+        else:
+            farm_hay_col()
 
 
